@@ -9,8 +9,6 @@
 
 import { 
   RawInvoice, 
-  ExtractedField, 
-  InvoiceMetadata, 
   QualityLevel,
   VendorInfo,
   VendorRelationshipType

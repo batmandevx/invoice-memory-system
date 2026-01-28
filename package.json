@@ -9,7 +9,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:property": "jest --testNamePattern=\"Property\"",
     "dev": "ts-node src/index.ts",
+    "demo": "ts-node src/demo/index.ts",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
