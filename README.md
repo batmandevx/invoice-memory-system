@@ -1,3 +1,8 @@
+<img width="1481" height="1370" alt="image" src="https://github.com/user-attachments/assets/a12a0028-2f5d-4aed-b305-02cbcc9bc0b9" />
+<img width="1345" height="1180" alt="image" src="https://github.com/user-attachments/assets/ede44c26-7f29-48fe-90ff-aa4e8d86bb21" />
+
+
+
 # AI Agent Memory System for Invoice Processing
 
 A TypeScript-based memory-driven learning layer that enhances invoice processing automation by storing and applying insights from past processing experiences. The system learns from vendor patterns, human corrections, and resolution outcomes to progressively reduce manual review requirements while maintaining explainability and auditability.
