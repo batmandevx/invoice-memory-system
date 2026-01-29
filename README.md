@@ -1,3 +1,6 @@
+<img width="1481" height="1370" alt="image" src="https://github.com/user-attachments/assets/a12a0028-2f5d-4aed-b305-02cbcc9bc0b9" />
+<img width="1345" height="1180" alt="image" src="https://github.com/user-attachments/assets/ede44c26-7f29-48fe-90ff-aa4e8d86bb21" />
+
 # 🧠 AI Agent Memory System - Invoice Processing Automation
 
 ## 🎯 Assignment Overview
@@ -463,6 +466,10 @@ The system transforms repetitive manual corrections into automated intelligence,
 
 ---
 
+<<<<<<< HEAD
 **Repository**: https://github.com/batmandevx/invoice-memory-system.git  
 **Contact**: batmandevx  
 **Submission Date**: January 28, 2025
+=======
+**GitHub Repository**: https://github.com/batmandevx/invoice-memory-system.git
+>>>>>>> 54389310feae5daab29b2c40e666bf8c7c3119d9
