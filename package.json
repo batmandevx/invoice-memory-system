@@ -11,10 +11,13 @@
     "test:coverage": "jest --coverage",
     "test:property": "jest --testNamePattern=\"Property\"",
     "dev": "ts-node src/index.ts",
-    "demo": "ts-node src/demo/index.ts",
+    "demo": "node demo.js",
+    "demo:enhanced": "node demo.js",
+    "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "prepare": "npm run build"
   },
   "keywords": [
     "ai",

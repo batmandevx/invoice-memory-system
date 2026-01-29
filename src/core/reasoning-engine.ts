@@ -10,22 +10,20 @@ import {
   Memory,
   MemoryType,
   VendorMemory,
-  CorrectionMemory,
-  ResolutionMemory,
   RawInvoice,
   NormalizedInvoice,
   Decision,
   DecisionType,
   RiskLevel,
-  Correction,
+  RiskAssessment,
   MemoryUpdate,
-  AuditStep,
-  ProcessingOutcome,
-  HumanDecision,
-  ValidationIssue,
-  IssueSeverity
+  ProcessingOutcome
 } from '../types';
 import { AppliedMemory, FailedMemory, ResolvedConflict } from './memory-application';
+
+// Local type definitions for types referenced in function signatures
+type IssueSeverity = 'critical' | 'high' | 'medium' | 'low';
+type ValidationIssue = { severity: IssueSeverity; description: string; field?: string };
 
 /**
  * Detailed reasoning for memory selection and application
@@ -33,16 +31,16 @@ import { AppliedMemory, FailedMemory, ResolvedConflict } from './memory-applicat
 export interface MemorySelectionReasoning {
   /** Why this memory was selected */
   selectionReason: string;
-  
+
   /** Confidence factors that influenced selection */
   confidenceFactors: string[];
-  
+
   /** Context factors that made this memory relevant */
   contextFactors: string[];
-  
+
   /** Why other memories were not selected */
   rejectionReasons: string[];
-  
+
   /** Risk factors considered */
   riskFactors: string[];
 }
@@ -53,22 +51,22 @@ export interface MemorySelectionReasoning {
 export interface DecisionReasoning {
   /** Primary reason for the decision */
   primaryReason: string;
-  
+
   /** Confidence analysis */
   confidenceAnalysis: string;
-  
+
   /** Risk assessment reasoning */
   riskAnalysis: string;
-  
+
   /** Memory influence on decision */
   memoryInfluence: string;
-  
+
   /** Validation issues impact */
   validationImpact: string;
-  
+
   /** Alternative decisions considered */
   alternativesConsidered: string[];
-  
+
   /** Final decision justification */
   finalJustification: string;
 }
@@ -79,19 +77,19 @@ export interface DecisionReasoning {
 export interface ApplicationReasoning {
   /** Why memories were applied */
   applicationJustification: string;
-  
+
   /** Field mapping explanations */
   fieldMappingExplanations: FieldMappingExplanation[];
-  
+
   /** Correction explanations */
   correctionExplanations: CorrectionExplanation[];
-  
+
   /** Conflict resolution explanations */
   conflictResolutions: ConflictResolutionExplanation[];
-  
+
   /** Validation reasoning */
   validationReasoning: string;
-  
+
   /** Overall application summary */
   applicationSummary: string;
 }
@@ -102,25 +100,25 @@ export interface ApplicationReasoning {
 export interface FieldMappingExplanation {
   /** Source field name */
   sourceField: string;
-  
+
   /** Target field name */
   targetField: string;
-  
+
   /** Original value */
   originalValue: unknown;
-  
+
   /** Transformed value */
   transformedValue: unknown;
-  
+
   /** Memory that provided the mapping */
   memoryId: string;
-  
+
   /** Confidence in the mapping */
   confidence: number;
-  
+
   /** Detailed explanation of the transformation */
   explanation: string;
-  
+
   /** Why this mapping was chosen */
   selectionReason: string;
 }
@@ -131,25 +129,25 @@ export interface FieldMappingExplanation {
 export interface CorrectionExplanation {
   /** Field being corrected */
   field: string;
-  
+
   /** Original value */
   originalValue: unknown;
-  
+
   /** Corrected value */
   correctedValue: unknown;
-  
+
   /** Memory that suggested the correction */
   memoryId: string;
-  
+
   /** Confidence in the correction */
   confidence: number;
-  
+
   /** Detailed explanation of why correction was needed */
   explanation: string;
-  
+
   /** Pattern or rule that triggered the correction */
   triggerPattern: string;
-  
+
   /** Historical context for this correction */
   historicalContext: string;
 }
@@ -160,19 +158,19 @@ export interface CorrectionExplanation {
 export interface ConflictResolutionExplanation {
   /** Type of conflict */
   conflictType: string;
-  
+
   /** Memories involved in conflict */
   conflictingMemoryIds: string[];
-  
+
   /** Selected memory */
   selectedMemoryId: string;
-  
+
   /** Resolution strategy used */
   resolutionStrategy: string;
-  
+
   /** Detailed explanation of resolution */
   explanation: string;
-  
+
   /** Why other memories were rejected */
   rejectionReasons: string[];
 }
@@ -268,7 +266,7 @@ export interface ReasoningEngine {
  * Implementation of the reasoning engine
  */
 export class ReasoningEngineImpl implements ReasoningEngine {
-  
+
   /**
    * Generate detailed reasoning for memory selection
    */
@@ -288,21 +286,21 @@ export class ReasoningEngineImpl implements ReasoningEngine {
       selectionReasons.push('No memories were selected due to insufficient confidence or relevance');
     } else {
       selectionReasons.push(`Selected ${selectedMemories.length} memories based on confidence and relevance criteria`);
-      
+
       // Analyze confidence factors
       const avgConfidence = selectedMemories.reduce((sum, m) => sum + m.confidence, 0) / selectedMemories.length;
       confidenceFactors.push(`Average confidence of selected memories: ${(avgConfidence * 100).toFixed(1)}%`);
-      
+
       const highConfidenceCount = selectedMemories.filter(m => m.confidence >= 0.8).length;
       if (highConfidenceCount > 0) {
         confidenceFactors.push(`${highConfidenceCount} high-confidence memories (≥80%) included`);
       }
-      
+
       // Analyze context factors
       const vendorMemories = selectedMemories.filter(m => m.type === MemoryType.VENDOR);
       const correctionMemories = selectedMemories.filter(m => m.type === MemoryType.CORRECTION);
       const resolutionMemories = selectedMemories.filter(m => m.type === MemoryType.RESOLUTION);
-      
+
       if (vendorMemories.length > 0) {
         contextFactors.push(`${vendorMemories.length} vendor-specific memories matched for ${invoice.vendorId}`);
       }
@@ -312,7 +310,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
       if (resolutionMemories.length > 0) {
         contextFactors.push(`${resolutionMemories.length} resolution memories available for discrepancy handling`);
       }
-      
+
       // Analyze usage patterns
       const recentlyUsedCount = selectedMemories.filter(
         m => m.lastUsed && (Date.now() - m.lastUsed.getTime()) < 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -327,7 +325,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
       const lowConfidenceCount = rejectedMemories.filter(m => m.confidence < 0.3).length;
       const irrelevantCount = rejectedMemories.filter(m => !this.isMemoryRelevant(m, invoice)).length;
       const outdatedCount = rejectedMemories.filter(m => this.isMemoryOutdated(m)).length;
-      
+
       if (lowConfidenceCount > 0) {
         rejectionReasons.push(`${lowConfidenceCount} memories rejected due to low confidence (<30%)`);
       }
@@ -344,7 +342,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     if (untriedMemories.length > 0) {
       riskFactors.push(`${untriedMemories.length} untested memories included - may require validation`);
     }
-    
+
     const lowSuccessRateMemories = selectedMemories.filter(m => m.successRate < 0.7);
     if (lowSuccessRateMemories.length > 0) {
       riskFactors.push(`${lowSuccessRateMemories.length} memories with success rate <70% included`);
@@ -374,7 +372,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
   ): DecisionReasoning {
     const confidencePercent = (context.confidence * 100).toFixed(1);
     const thresholdPercent = (context.escalationThreshold * 100).toFixed(1);
-    
+
     // Primary reason analysis
     let primaryReason: string;
     switch (decision.decisionType) {
@@ -403,19 +401,19 @@ export class ReasoningEngineImpl implements ReasoningEngine {
 
     // Confidence analysis
     const confidenceAnalysis = this.generateConfidenceAnalysis(context.confidence, context.escalationThreshold, appliedMemories);
-    
+
     // Risk analysis
     const riskAnalysis = this.generateRiskAnalysis(decision.riskAssessment);
-    
+
     // Memory influence analysis
     const memoryInfluence = this.generateMemoryInfluenceAnalysis(appliedMemories);
-    
+
     // Validation impact analysis
     const validationImpact = this.generateValidationImpactAnalysis(validationIssues);
-    
+
     // Alternative decisions considered
     const alternativesConsidered = this.generateAlternativesAnalysis(decision, context, validationIssues);
-    
+
     // Final justification
     const finalJustification = this.generateFinalJustification(decision, context, appliedMemories, validationIssues);
 
@@ -441,19 +439,19 @@ export class ReasoningEngineImpl implements ReasoningEngine {
   ): ApplicationReasoning {
     // Application justification
     const applicationJustification = this.generateApplicationJustification(appliedMemories, failedMemories);
-    
+
     // Field mapping explanations
     const fieldMappingExplanations = this.generateFieldMappingExplanations(appliedMemories);
-    
+
     // Correction explanations
     const correctionExplanations = this.generateCorrectionExplanations(appliedMemories);
-    
+
     // Conflict resolution explanations
     const conflictResolutions = this.generateConflictResolutionExplanations(resolvedConflicts);
-    
+
     // Validation reasoning
     const validationReasoning = this.generateValidationReasoning(appliedMemories, failedMemories);
-    
+
     // Overall application summary
     const applicationSummary = this.generateApplicationSummary(
       appliedMemories,
@@ -525,7 +523,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     }
 
     const explanations: string[] = [];
-    
+
     // Group by reason for ignoring
     const lowConfidence = ignoredMemories.filter(m => m.confidence < 0.3);
     const irrelevant = ignoredMemories.filter(m => !this.isMemoryRelevant(m, invoice));
@@ -611,20 +609,20 @@ export class ReasoningEngineImpl implements ReasoningEngine {
       const vendorMemory = memory as VendorMemory;
       return vendorMemory.vendorId === invoice.vendorId;
     }
-    
+
     // For correction and resolution memories, check pattern relevance
     // This is a simplified check - in practice would be more sophisticated
-    return memory.context.vendorId === invoice.vendorId || 
-           memory.context.vendorId === 'all' ||
-           memory.usageCount > 5; // Well-established patterns
+    return memory.context.vendorId === invoice.vendorId ||
+      memory.context.vendorId === 'all' ||
+      memory.usageCount > 5; // Well-established patterns
   }
 
   private isMemoryOutdated(memory: Memory): boolean {
     if (!memory.lastUsed) {
-      return memory.usageCount === 0 && 
-             (Date.now() - memory.createdAt.getTime()) > 90 * 24 * 60 * 60 * 1000; // 90 days
+      return memory.usageCount === 0 &&
+        (Date.now() - memory.createdAt.getTime()) > 90 * 24 * 60 * 60 * 1000; // 90 days
     }
-    
+
     // Consider outdated if not used in 60 days and has low success rate
     const daysSinceLastUse = (Date.now() - memory.lastUsed.getTime()) / (24 * 60 * 60 * 1000);
     return daysSinceLastUse > 60 && memory.successRate < 0.6;
@@ -636,14 +634,14 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     appliedMemories: Memory[]
   ): string {
     const parts: string[] = [];
-    
+
     parts.push(`Overall processing confidence: ${(confidence * 100).toFixed(1)}%`);
     parts.push(`Escalation threshold: ${(threshold * 100).toFixed(1)}%`);
-    
+
     if (appliedMemories.length > 0) {
       const avgMemoryConfidence = appliedMemories.reduce((sum, m) => sum + m.confidence, 0) / appliedMemories.length;
       parts.push(`Average memory confidence: ${(avgMemoryConfidence * 100).toFixed(1)}%`);
-      
+
       const highConfidenceCount = appliedMemories.filter(m => m.confidence >= 0.8).length;
       if (highConfidenceCount > 0) {
         parts.push(`${highConfidenceCount} high-confidence memories contributed to decision`);
@@ -651,34 +649,34 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     } else {
       parts.push('No memories applied - decision based on default processing logic');
     }
-    
+
     return parts.join('; ');
   }
 
   private generateRiskAnalysis(riskAssessment: { riskLevel: RiskLevel; riskFactors: any[]; mitigationStrategies: string[] }): string {
     const parts: string[] = [];
-    
+
     parts.push(`Risk level assessed as ${riskAssessment.riskLevel}`);
-    
+
     if (riskAssessment.riskFactors.length > 0) {
       parts.push(`${riskAssessment.riskFactors.length} risk factors identified`);
-      
+
       // Categorize risk factors
       const riskTypes = riskAssessment.riskFactors.reduce((acc: Record<string, number>, factor: any) => {
         acc[factor.riskType] = (acc[factor.riskType] || 0) + 1;
         return acc;
       }, {});
-      
+
       const riskSummary = Object.entries(riskTypes)
         .map(([type, count]) => `${count} ${type}`)
         .join(', ');
       parts.push(`Risk types: ${riskSummary}`);
     }
-    
+
     if (riskAssessment.mitigationStrategies.length > 0) {
       parts.push(`${riskAssessment.mitigationStrategies.length} mitigation strategies available`);
     }
-    
+
     return parts.join('; ');
   }
 
@@ -686,27 +684,27 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     if (appliedMemories.length === 0) {
       return 'No memories influenced the decision - processed using default logic';
     }
-    
+
     const parts: string[] = [];
-    
+
     // Analyze by memory type
     const vendorCount = appliedMemories.filter(m => m.type === MemoryType.VENDOR).length;
     const correctionCount = appliedMemories.filter(m => m.type === MemoryType.CORRECTION).length;
     const resolutionCount = appliedMemories.filter(m => m.type === MemoryType.RESOLUTION).length;
-    
+
     const influences: string[] = [];
     if (vendorCount > 0) influences.push(`${vendorCount} vendor patterns`);
     if (correctionCount > 0) influences.push(`${correctionCount} correction patterns`);
     if (resolutionCount > 0) influences.push(`${resolutionCount} resolution patterns`);
-    
+
     parts.push(`Decision influenced by ${influences.join(', ')}`);
-    
+
     // Analyze confidence impact
     const highImpactMemories = appliedMemories.filter(m => m.confidence >= 0.8 && m.usageCount >= 3);
     if (highImpactMemories.length > 0) {
       parts.push(`${highImpactMemories.length} high-impact memories with proven track record`);
     }
-    
+
     return parts.join('; ');
   }
 
@@ -714,17 +712,17 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     if (validationIssues.length === 0) {
       return 'No validation issues detected - all checks passed successfully';
     }
-    
+
     const critical = validationIssues.filter(i => i.severity === IssueSeverity.CRITICAL).length;
     const errors = validationIssues.filter(i => i.severity === IssueSeverity.ERROR).length;
     const warnings = validationIssues.filter(i => i.severity === IssueSeverity.WARNING).length;
-    
+
     const parts: string[] = [];
-    
+
     if (critical > 0) parts.push(`${critical} critical issues`);
     if (errors > 0) parts.push(`${errors} errors`);
     if (warnings > 0) parts.push(`${warnings} warnings`);
-    
+
     return `Validation found ${parts.join(', ')} requiring attention`;
   }
 
@@ -734,9 +732,9 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     validationIssues: ValidationIssue[]
   ): string[] {
     const alternatives: string[] = [];
-    
+
     const criticalIssues = validationIssues.filter(i => i.severity === IssueSeverity.CRITICAL).length;
-    
+
     switch (decision.decisionType) {
       case DecisionType.AUTO_APPROVE:
         if (context.confidence < 0.9) {
@@ -746,7 +744,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
           alternatives.push('Rejection was considered due to validation issues but they were deemed non-blocking');
         }
         break;
-        
+
       case DecisionType.HUMAN_REVIEW_REQUIRED:
         if (context.confidence >= context.escalationThreshold) {
           alternatives.push('Auto-approval was considered but risk factors required human validation');
@@ -755,16 +753,16 @@ export class ReasoningEngineImpl implements ReasoningEngine {
           alternatives.push('Rejection was considered due to very low confidence but human review preferred');
         }
         break;
-        
+
       case DecisionType.REJECT_INVOICE:
         alternatives.push('Human review was considered but critical issues made rejection necessary');
         break;
-        
+
       case DecisionType.ESCALATE_TO_EXPERT:
         alternatives.push('Standard human review was considered but complexity required expert attention');
         break;
     }
-    
+
     return alternatives;
   }
 
@@ -777,23 +775,23 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     const confidencePercent = (context.confidence * 100).toFixed(1);
     const memoryCount = appliedMemories.length;
     const issueCount = validationIssues.length;
-    
+
     switch (decision.decisionType) {
       case DecisionType.AUTO_APPROVE:
         return `Auto-approval justified by ${confidencePercent}% confidence, ${memoryCount} supporting memories, and ${issueCount} minor validation issues that do not impact processing quality`;
-        
+
       case DecisionType.HUMAN_REVIEW_REQUIRED:
         return `Human review required to validate ${confidencePercent}% confidence decision with ${memoryCount} applied memories and ${issueCount} validation considerations`;
-        
+
       case DecisionType.ESCALATE_TO_EXPERT:
         return `Expert escalation necessary due to complex decision factors requiring specialized knowledge beyond standard processing capabilities`;
-        
+
       case DecisionType.REJECT_INVOICE:
         return `Rejection necessary due to critical validation failures or insufficient confidence (${confidencePercent}%) for reliable processing`;
-        
+
       case DecisionType.REQUEST_ADDITIONAL_INFO:
         return `Additional information required to achieve reliable processing confidence above current ${confidencePercent}% level`;
-        
+
       default:
         return `Decision made based on comprehensive analysis of confidence, memory patterns, and validation results`;
     }
@@ -801,24 +799,24 @@ export class ReasoningEngineImpl implements ReasoningEngine {
 
   private generateApplicationJustification(appliedMemories: AppliedMemory[], failedMemories: FailedMemory[]): string {
     const parts: string[] = [];
-    
+
     if (appliedMemories.length > 0) {
       parts.push(`Successfully applied ${appliedMemories.length} memories`);
-      
+
       const avgConfidence = appliedMemories.reduce((sum, m) => sum + m.applicationConfidence, 0) / appliedMemories.length;
       parts.push(`with average application confidence ${(avgConfidence * 100).toFixed(1)}%`);
     }
-    
+
     if (failedMemories.length > 0) {
       parts.push(`${failedMemories.length} memories failed to apply due to validation or compatibility issues`);
     }
-    
+
     return parts.join(' ');
   }
 
   private generateFieldMappingExplanations(appliedMemories: AppliedMemory[]): FieldMappingExplanation[] {
     const explanations: FieldMappingExplanation[] = [];
-    
+
     for (const appliedMemory of appliedMemories) {
       if (appliedMemory.applicationType === 'field_mapping') {
         for (const transformation of appliedMemory.transformations) {
@@ -835,13 +833,13 @@ export class ReasoningEngineImpl implements ReasoningEngine {
         }
       }
     }
-    
+
     return explanations;
   }
 
   private generateCorrectionExplanations(appliedMemories: AppliedMemory[]): CorrectionExplanation[] {
     const explanations: CorrectionExplanation[] = [];
-    
+
     for (const appliedMemory of appliedMemories) {
       if (appliedMemory.applicationType === 'correction') {
         // This would be populated from actual correction data
@@ -858,7 +856,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
         });
       }
     }
-    
+
     return explanations;
   }
 
@@ -877,17 +875,17 @@ export class ReasoningEngineImpl implements ReasoningEngine {
 
   private generateValidationReasoning(appliedMemories: AppliedMemory[], failedMemories: FailedMemory[]): string {
     const parts: string[] = [];
-    
+
     const validationFailures = failedMemories.filter(m => m.validationFailure).length;
     if (validationFailures > 0) {
       parts.push(`${validationFailures} memories failed validation checks`);
     }
-    
+
     const successfulApplications = appliedMemories.length;
     if (successfulApplications > 0) {
       parts.push(`${successfulApplications} memories passed all validation requirements`);
     }
-    
+
     return parts.length > 0 ? parts.join('; ') : 'All memory applications validated successfully';
   }
 
@@ -898,21 +896,21 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     invoice: RawInvoice
   ): string {
     const parts: string[] = [];
-    
+
     parts.push(`Processed invoice ${invoice.id} from vendor ${invoice.vendorId}`);
-    
+
     if (appliedMemories.length > 0) {
       parts.push(`successfully applied ${appliedMemories.length} memories`);
     }
-    
+
     if (failedMemories.length > 0) {
       parts.push(`${failedMemories.length} memories could not be applied`);
     }
-    
+
     if (resolvedConflicts.length > 0) {
       parts.push(`resolved ${resolvedConflicts.length} memory conflicts`);
     }
-    
+
     return parts.join(', ');
   }
 
@@ -920,7 +918,7 @@ export class ReasoningEngineImpl implements ReasoningEngine {
     const type = transformation.transformationType;
     const source = transformation.sourceField;
     const target = transformation.targetField;
-    
+
     switch (type) {
       case 'direct_mapping':
         return `Direct mapping from ${source} to ${target} without transformation`;

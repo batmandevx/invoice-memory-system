@@ -8,7 +8,6 @@
 import {
   RawInvoice,
   NormalizedInvoice,
-  DiscrepancyType,
   AuditStep,
   AuditOperation
 } from '../types';
@@ -21,16 +20,16 @@ import { DatabaseConnection } from '../database/connection';
 export interface DuplicateDetectionConfig {
   /** Maximum days difference to consider invoices as potential duplicates */
   dateProximityDays: number;
-  
+
   /** Enable fuzzy matching for invoice numbers */
   enableFuzzyMatching: boolean;
-  
+
   /** Similarity threshold for fuzzy matching (0.0-1.0) */
   fuzzyMatchThreshold: number;
-  
+
   /** Enable amount comparison for duplicate detection */
   enableAmountComparison: boolean;
-  
+
   /** Maximum percentage difference in amounts to consider duplicates */
   amountTolerancePercent: number;
 }
@@ -41,16 +40,16 @@ export interface DuplicateDetectionConfig {
 export interface DuplicateDetectionResult {
   /** Whether potential duplicates were found */
   duplicatesFound: boolean;
-  
+
   /** Array of potential duplicate invoices */
   potentialDuplicates: DuplicateMatch[];
-  
+
   /** Validation issues generated from duplicate detection */
   validationIssues: ValidationIssue[];
-  
+
   /** Confidence score for duplicate detection (0.0-1.0) */
   confidence: number;
-  
+
   /** Reasoning for duplicate detection results */
   reasoning: string;
 }
@@ -60,25 +59,25 @@ export interface DuplicateDetectionResult {
 export interface DuplicateMatch {
   /** ID of the potentially duplicate invoice */
   duplicateInvoiceId: string;
-  
+
   /** Vendor ID of the duplicate */
   vendorId: string;
-  
+
   /** Invoice number of the duplicate */
   invoiceNumber: string;
-  
+
   /** Date of the duplicate invoice */
   invoiceDate: Date;
-  
+
   /** Similarity score (0.0-1.0) */
   similarityScore: number;
-  
+
   /** Specific matching criteria that triggered the duplicate detection */
   matchingCriteria: MatchingCriteria[];
-  
+
   /** Days difference between invoice dates */
   daysDifference: number;
-  
+
   /** Amount difference if amounts were compared */
   amountDifference?: number;
 }
@@ -89,13 +88,13 @@ export interface DuplicateMatch {
 export interface MatchingCriteria {
   /** Type of criteria */
   criteriaType: DuplicateCriteriaType;
-  
+
   /** Whether this criteria matched */
   matched: boolean;
-  
+
   /** Confidence in this criteria match (0.0-1.0) */
   confidence: number;
-  
+
   /** Details about the match */
   details: string;
 }
@@ -120,20 +119,20 @@ export interface DuplicateDetectionService {
    * @returns Duplicate detection result
    */
   detectDuplicates(invoice: RawInvoice | NormalizedInvoice): Promise<DuplicateDetectionResult>;
-  
+
   /**
    * Check if an invoice is a duplicate of any previously processed invoice
    * @param invoice Invoice to check
    * @returns True if duplicate is found
    */
   isDuplicate(invoice: RawInvoice | NormalizedInvoice): Promise<boolean>;
-  
+
   /**
    * Get audit steps for duplicate detection operations
    * @returns Array of audit steps
    */
   getAuditSteps(): AuditStep[];
-  
+
   /**
    * Clear audit steps (for testing)
    */
@@ -166,20 +165,20 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
    */
   async detectDuplicates(invoice: RawInvoice | NormalizedInvoice): Promise<DuplicateDetectionResult> {
     const startTime = Date.now();
-    
+
     try {
       // Query database for potential duplicates
       const potentialDuplicates = await this.queryPotentialDuplicates(invoice);
-      
+
       // Analyze each potential duplicate
       const duplicateMatches: DuplicateMatch[] = [];
       const validationIssues: ValidationIssue[] = [];
-      
+
       for (const candidate of potentialDuplicates) {
         const match = await this.analyzeDuplicateCandidate(invoice, candidate);
         if (match && match.similarityScore >= this.config.fuzzyMatchThreshold) {
           duplicateMatches.push(match);
-          
+
           // Create validation issue for duplicate
           validationIssues.push({
             severity: IssueSeverity.WARNING,
@@ -190,13 +189,13 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
           });
         }
       }
-      
+
       // Calculate overall confidence
       const confidence = this.calculateDetectionConfidence(duplicateMatches);
-      
+
       // Generate reasoning
       const reasoning = this.generateDetectionReasoning(invoice, duplicateMatches, potentialDuplicates.length);
-      
+
       // Record audit step
       const auditStep: AuditStep = {
         id: `duplicate-detection-${Date.now()}`,
@@ -218,9 +217,9 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
         actor: 'DuplicateDetectionService',
         duration: Date.now() - startTime
       };
-      
+
       this.auditSteps.push(auditStep);
-      
+
       return {
         duplicatesFound: duplicateMatches.length > 0,
         potentialDuplicates: duplicateMatches,
@@ -228,11 +227,11 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
         confidence,
         reasoning
       };
-      
+
     } catch (error) {
       // Handle errors gracefully
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       const errorAuditStep: AuditStep = {
         id: `duplicate-detection-error-${Date.now()}`,
         timestamp: new Date(),
@@ -243,9 +242,9 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
         actor: 'DuplicateDetectionService',
         duration: Date.now() - startTime
       };
-      
+
       this.auditSteps.push(errorAuditStep);
-      
+
       // Return safe fallback result
       return {
         duplicatesFound: false,
@@ -291,11 +290,11 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
     const invoiceDate = 'invoiceDate' in invoice ? invoice.invoiceDate : new Date();
     const dateFrom = new Date(invoiceDate);
     const dateTo = new Date(invoiceDate);
-    
+
     // Calculate date range based on proximity configuration
     dateFrom.setDate(dateFrom.getDate() - this.config.dateProximityDays);
     dateTo.setDate(dateTo.getDate() + this.config.dateProximityDays);
-    
+
     const query = `
       SELECT 
         id,
@@ -312,17 +311,25 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
       ORDER BY processing_timestamp DESC
       LIMIT 50
     `;
-    
+
     const params = [
       invoice.vendorId,
       dateFrom.toISOString().split('T')[0],
       dateTo.toISOString().split('T')[0],
       invoice.id
     ];
-    
-    const rows = await this.db.all(query, params);
-    
-    return rows.map(row => ({
+
+    const rows = await this.db.query<{
+      id: string;
+      vendor_id: string;
+      invoice_number: string;
+      invoice_date: string;
+      confidence_score: number;
+      processing_timestamp: string;
+      corrections_made: string | null;
+    }>(query, params);
+
+    return rows.map((row) => ({
       id: row.id,
       vendorId: row.vendor_id,
       invoiceNumber: row.invoice_number,
@@ -352,7 +359,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
       details: `Vendor IDs: ${invoice.vendorId} vs ${candidate.vendorId}`
     };
     matchingCriteria.push(vendorMatch);
-    
+
     if (!vendorMatch.matched) {
       return null; // Different vendors cannot be duplicates
     }
@@ -360,7 +367,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
     // 2. Invoice number matching
     const exactNumberMatch = invoice.invoiceNumber === candidate.invoiceNumber;
     let numberMatchScore = 0;
-    
+
     if (exactNumberMatch) {
       matchingCriteria.push({
         criteriaType: DuplicateCriteriaType.EXACT_INVOICE_NUMBER,
@@ -379,7 +386,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
       });
       numberMatchScore = fuzzyScore;
     }
-    
+
     totalScore += numberMatchScore;
     criteriaCount++;
 
@@ -388,7 +395,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
     const daysDifference = Math.abs(
       (invoiceDate.getTime() - candidate.invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
     );
-    
+
     const dateProximityScore = Math.max(0, 1 - (daysDifference / this.config.dateProximityDays));
     matchingCriteria.push({
       criteriaType: DuplicateCriteriaType.DATE_PROXIMITY,
@@ -396,7 +403,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
       confidence: dateProximityScore,
       details: `Date difference: ${daysDifference.toFixed(1)} days (threshold: ${this.config.dateProximityDays} days)`
     });
-    
+
     totalScore += dateProximityScore;
     criteriaCount++;
 
@@ -412,7 +419,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
         confidence: amountScore,
         details: 'Amount comparison (placeholder implementation)'
       });
-      
+
       totalScore += amountScore;
       criteriaCount++;
       amountDifference = 0; // Placeholder
@@ -421,16 +428,19 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
     // Calculate overall similarity score
     const similarityScore = criteriaCount > 0 ? totalScore / criteriaCount : 0;
 
-    return {
+    const result: DuplicateMatch = {
       duplicateInvoiceId: candidate.id,
       vendorId: candidate.vendorId,
       invoiceNumber: candidate.invoiceNumber,
       invoiceDate: candidate.invoiceDate,
       similarityScore,
       matchingCriteria,
-      daysDifference,
-      amountDifference
+      daysDifference
     };
+    if (amountDifference !== undefined) {
+      result.amountDifference = amountDifference;
+    }
+    return result;
   }
   /**
    * Calculate string similarity using Levenshtein distance
@@ -452,27 +462,27 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
 
     // Initialize matrix
     for (let i = 0; i <= len1; i++) {
-      matrix[i] = [i];
+      matrix[i] = [];
+      matrix[i]![0] = i;
     }
     for (let j = 0; j <= len2; j++) {
-      matrix[0][j] = j;
+      matrix[0]![j] = j;
     }
 
     // Fill matrix
     for (let i = 1; i <= len1; i++) {
       for (let j = 1; j <= len2; j++) {
         const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,     // deletion
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j - 1] + cost // substitution
-        );
+        const deletion = matrix[i - 1]![j]! + 1;
+        const insertion = matrix[i]![j - 1]! + 1;
+        const substitution = matrix[i - 1]![j - 1]! + cost;
+        matrix[i]![j] = Math.min(deletion, insertion, substitution);
       }
     }
 
-    const distance = matrix[len1][len2];
+    const distance = matrix[len1]![len2]!;
     const maxLength = Math.max(len1, len2);
-    
+
     return maxLength === 0 ? 1.0 : 1 - (distance / maxLength);
   }
 
@@ -486,7 +496,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
 
     // Calculate confidence based on the highest similarity score
     const maxSimilarity = Math.max(...duplicateMatches.map(m => m.similarityScore));
-    
+
     // Higher similarity = higher confidence in duplicate detection
     return Math.min(0.95, maxSimilarity);
   }
@@ -505,7 +515,7 @@ export class DuplicateDetectionServiceImpl implements DuplicateDetectionService 
         `Invoice number "${invoice.invoiceNumber}" appears to be unique.`;
     }
 
-    const bestMatch = duplicateMatches.reduce((best, current) => 
+    const bestMatch = duplicateMatches.reduce((best, current) =>
       current.similarityScore > best.similarityScore ? current : best
     );
 
